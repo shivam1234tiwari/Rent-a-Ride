@@ -12,10 +12,6 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please add an email'],
     unique: true,
     lowercase: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please add a valid email',
-    ],
   },
   password: {
     type: String,
@@ -29,12 +25,48 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'driver'],
     default: 'user',
   },
   avatar: {
     type: String,
     default: 'https://ui-avatars.com/api/?background=random',
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    pincode: String,
+  },
+  // Driver specific fields
+  driverProfile: {
+    licenseNumber: String,
+    experience: Number,
+    rating: { type: Number, default: 0 },
+    totalTrips: { type: Number, default: 0 },
+    completedTrips: { type: Number, default: 0 },
+    cancelledTrips: { type: Number, default: 0 },
+    availability: { type: Boolean, default: true },
+    currentLocation: {
+      lat: Number,
+      lng: Number,
+    },
+    vehicleAssigned: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vehicle',
+    },
+    documents: {
+      aadharCard: String,
+      panCard: String,
+      drivingLicense: String,
+    },
+    earnings: { type: Number, default: 0 },
+    joinDate: { type: Date, default: Date.now },
+  },
+  preferences: {
+    preferredVehicleType: [String],
+    preferredLanguage: { type: String, default: 'english' },
+    notificationsEnabled: { type: Boolean, default: true },
   },
   createdAt: {
     type: Date,

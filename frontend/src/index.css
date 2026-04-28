@@ -45,3 +45,18 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-gradient-to-b from-blue-500 to-purple-500 rounded-full;
 }
+/* Toggle Switch for Ride Sharing */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #8b5cf6;
+}
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #8b5cf6;
+}
+.toggle-checkbox {
+  right: 0;
+  transition: all 0.3s ease;
+}
+.toggle-label {
+  transition: background-color 0.3s ease;
+}

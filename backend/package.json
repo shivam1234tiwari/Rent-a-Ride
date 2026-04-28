@@ -1,23 +1,53 @@
 {
   "name": "vehicle-rental-backend",
-  "version": "1.0.0",
-  "description": "Backend for Vehicle Rental System",
+  "version": "2.0.0",
+  "description": "Advanced Vehicle Rental System Backend with RBAC, AI Chatbot, Smart Pricing, Live Tracking",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node seedVehicles.js"
+    "seed:vehicles": "node seeders/seedVehiclesINR.js",
+    "seed:drivers": "node seeders/seedDrivers.js",
+    "seed:users": "node seeders/seedUsers.js",
+    "seed:all": "npm run seed:vehicles && npm run seed:drivers && npm run seed:users",
+    "seed:reset": "npm run seed:all",
+    "clean": "rm -rf node_modules package-lock.json && npm install",
+    "lint": "eslint .",
+    "test": "jest",
+    "dev:seed": "npm run seed:all && npm run dev"
   },
+  "keywords": [
+    "vehicle-rental",
+    "car-rental",
+    "mern-stack",
+    "nodejs",
+    "express",
+    "mongodb",
+    "socketio",
+    "real-time-tracking",
+    "ai-chatbot",
+    "smart-pricing"
+  ],
+  "author": "RentWheels Team",
+  "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^8.0.3",
+    "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1",
     "cors": "^2.8.5",
-    "express-validator": "^7.0.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   }
 }
