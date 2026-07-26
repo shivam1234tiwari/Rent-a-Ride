@@ -1,94 +1,70 @@
 import { useState } from 'react';
-import { Search, Filter, DollarSign, Calendar } from 'lucide-react';
+import { Search, Car, Bike, Zap, Crown, Navigation, Filter } from 'lucide-react';
 
 const SearchBar = ({ onSearch }) => {
-  const [filters, setFilters] = useState({
-    search: '',
-    type: 'all',
-    minPrice: '',
-    maxPrice: '',
-  });
+  const [category, setCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
+  const categories = [
+    { id: 'all', label: 'All Fleet', icon: Filter },
+    { id: 'car', label: 'Cars', icon: Car },
+    { id: 'bike', label: 'Bikes', icon: Bike },
+    { id: 'electric', label: 'EVs', icon: Zap },
+    { id: 'luxury', label: 'Luxury', icon: Crown },
+    { id: 'self-driving', label: 'Self-Drive', icon: Navigation },
+  ];
 
-  const handleSubmit = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    onSearch(filters);
+    if (onSearch) {
+      onSearch({ category, search: searchTerm });
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 max-w-4xl mx-auto">
+      {/* Category Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar">
+        {categories.map((cat) => {
+          const Icon = cat.icon;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setCategory(cat.id)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition ${
+                category === cat.id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Input Search Form */}
+      <form onSubmit={handleSearchSubmit} className="flex gap-2 pt-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            name="search"
-            placeholder="Search vehicles..."
-            value={filters.search}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Search by vehicle name, city, or brand (e.g. Pune, Thar, BMW)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl border dark:border-gray-600 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
-        {/* Vehicle Type */}
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <select
-            name="type"
-            value={filters.type}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Types</option>
-            <option value="car">Cars</option>
-            <option value="suv">SUVs</option>
-            <option value="luxury">Luxury</option>
-            <option value="electric">Electric</option>
-            <option value="bike">Bikes</option>
-          </select>
-        </div>
-
-        {/* Min Price */}
-        <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="number"
-            name="minPrice"
-            placeholder="Min Price"
-            value={filters.minPrice}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Max Price */}
-        <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="number"
-            name="maxPrice"
-            placeholder="Max Price"
-            value={filters.maxPrice}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 flex justify-end">
         <button
           type="submit"
-          className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105"
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-sm rounded-xl shadow-md hover:opacity-95"
         >
-          Search Vehicles
+          Search
         </button>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };
 

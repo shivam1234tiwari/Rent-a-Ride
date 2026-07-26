@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Calendar, MapPin, CreditCard, IndianRupee, Shield, Users, Clock, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Shield, Disc, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -9,346 +10,233 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const BookingModal = ({ isOpen, onClose, vehicle, onBookingSuccess }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [bookingMode, setBookingMode] = useState('self-drive');
+  const [isOutstation, setIsOutstation] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [bookingData, setBookingData] = useState({
     startDate: '',
     endDate: '',
     pickupLocation: '',
     dropoffLocation: '',
-    specialRequests: '',
-    paymentMethod: 'card',
-    isSharedRide: false,
-    sharedWithCount: 1,
+    paymentMethod: 'upi',
   });
-  const [loading, setLoading] = useState(false);
-  const [showSmartPricing, setShowSmartPricing] = useState(false);
-  const [smartPrice, setSmartPrice] = useState(null);
 
   const calculateDays = () => {
     if (bookingData.startDate && bookingData.endDate) {
       const start = new Date(bookingData.startDate);
       const end = new Date(bookingData.endDate);
-      return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      return days > 0 ? days : 1;
     }
-    return 0;
+    return 1;
   };
 
-  const calculateBaseTotal = () => {
-    const days = calculateDays();
-    let total = days * vehicle.pricePerDay;
-    if (vehicle.driverRequired && vehicle.driverPrice) {
-      total += days * vehicle.driverPrice;
-    }
-    return total;
-  };
-
-  const calculateSharedDiscount = () => {
-    if (bookingData.isSharedRide && bookingData.sharedWithCount > 1) {
-      return 0.3; // 30% discount for ride sharing
-    }
-    return 0;
-  };
-
-  const calculateGST = (amount) => {
-    return amount * 0.18;
-  };
-
-  const calculateTotal = () => {
-    let total = calculateBaseTotal();
-    const sharedDiscount = calculateSharedDiscount();
-    total = total * (1 - sharedDiscount);
-    const gst = calculateGST(total);
-    return { subtotal: total, gst, total: total + gst };
-  };
-
-  const fetchSmartPricing = async () => {
-    try {
-      const { data } = await axios.post(
-        `${API_URL}/pricing/calculate`,
-        {
-          vehicleId: vehicle._id,
-          startDate: bookingData.startDate,
-          endDate: bookingData.endDate,
-          isPeakHour: false,
-          isSharedRide: bookingData.isSharedRide,
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
-      setSmartPrice(data);
-      setShowSmartPricing(true);
-    } catch (error) {
-      toast.error('Failed to fetch smart pricing');
-    }
-  };
+  const days = calculateDays();
+  const baseTotal = days * (vehicle?.pricePerDay || 0);
+  const driverCharge = bookingMode === 'with-driver' ? days * (vehicle?.driverPrice || 800) : 0;
+  const outstationAllowance = isOutstation ? days * 500 : 0;
+  const subtotal = baseTotal + driverCharge + outstationAllowance;
+  const gst = subtotal * 0.18;
+  const grandTotal = Math.round(subtotal + gst);
+  const securityDeposit = bookingMode === 'self-drive' ? (vehicle?.securityDeposit || 3000) : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!user) {
       toast.error('Please login to book a vehicle');
-      onClose();
+      navigate('/login');
       return;
     }
 
     setLoading(true);
     try {
-      const { subtotal, gst, total } = calculateTotal();
-      const response = await axios.post(`${API_URL}/bookings`, {
-        vehicleId: vehicle._id,
-        startDate: bookingData.startDate,
-        endDate: bookingData.endDate,
-        pickupLocation: bookingData.pickupLocation,
-        dropoffLocation: bookingData.dropoffLocation,
-        specialRequests: bookingData.specialRequests,
-        paymentMethod: bookingData.paymentMethod,
-        isSharedRide: bookingData.isSharedRide,
-        sharedWith: bookingData.isSharedRide ? bookingData.sharedWithCount : 1,
-        totalDays: calculateDays(),
-        basePrice: vehicle.pricePerDay,
-        driverPrice: vehicle.driverPrice || 0,
-        taxAmount: gst,
-        discountAmount: calculateBaseTotal() * calculateSharedDiscount(),
-        totalPrice: total,
-      });
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/bookings`,
+        {
+          vehicleId: vehicle._id,
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          pickupLocation: bookingData.pickupLocation,
+          dropoffLocation: bookingData.dropoffLocation,
+          paymentMethod: bookingData.paymentMethod,
+          bookingMode,
+          isOutstation,
+          totalPrice: grandTotal,
+          totalDays: days,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       toast.success('Booking confirmed successfully!');
-      onBookingSuccess(response.data);
+      if (onBookingSuccess) onBookingSuccess(response.data);
       onClose();
+      navigate('/dashboard');
     } catch (error) {
+      console.error('Booking error:', error);
       toast.error(error.response?.data?.message || 'Booking failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const { subtotal, gst, total } = calculateTotal();
-  const days = calculateDays();
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Book {vehicle.name}</h2>
-              <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
-                <X className="h-6 w-6" />
-              </button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border dark:border-gray-700"
+        >
+          <div className="sticky top-0 bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-4 flex justify-between items-center z-10">
+            <h2 className="text-xl font-bold">Book {vehicle?.name || 'Vehicle'}</h2>
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {/* Mode Selection */}
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Select Rental Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBookingMode('self-drive')}
+                  className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition ${
+                    bookingMode === 'self-drive'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-600 font-bold'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <Disc className="h-5 w-5" />
+                  <span className="text-sm">Self-Drive</span>
+                  <span className="text-[11px] text-gray-500 font-normal">You drive the vehicle</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingMode('with-driver')}
+                  className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition ${
+                    bookingMode === 'with-driver'
+                      ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/30 text-purple-600 font-bold'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <UserCheck className="h-5 w-5" />
+                  <span className="text-sm">Chauffeur Driven</span>
+                  <span className="text-[11px] text-gray-500 font-normal">Verified Driver +₹800/day</span>
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Date Selection */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Start Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="date"
-                      required
-                      min={new Date().toISOString().split('T')[0]}
-                      value={bookingData.startDate}
-                      onChange={(e) => {
-                        setBookingData({ ...bookingData, startDate: e.target.value });
-                        fetchSmartPricing();
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">End Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="date"
-                      required
-                      min={bookingData.startDate || new Date().toISOString().split('T')[0]}
-                      value={bookingData.endDate}
-                      onChange={(e) => {
-                        setBookingData({ ...bookingData, endDate: e.target.value });
-                        fetchSmartPricing();
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Ride Sharing Option */}
-              {vehicle.allowRideSharing && (
-                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-5 w-5 text-purple-600" />
-                      <span className="font-medium">Ride Sharing</span>
-                    </div>
-                    <div className="relative inline-block w-12 mr-2 align-middle select-none">
-                      <input
-                        type="checkbox"
-                        checked={bookingData.isSharedRide}
-                        onChange={(e) => setBookingData({ ...bookingData, isSharedRide: e.target.checked })}
-                        className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                      />
-                      <label className="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
-                    </div>
-                  </label>
-                  {bookingData.isSharedRide && (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium mb-2">Number of people sharing</label>
-                      <select
-                        value={bookingData.sharedWithCount}
-                        onChange={(e) => setBookingData({ ...bookingData, sharedWithCount: parseInt(e.target.value) })}
-                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                      >
-                        <option value={2}>2 people (30% discount)</option>
-                        <option value={3}>3 people (40% discount)</option>
-                        <option value={4}>4 people (50% discount)</option>
-                      </select>
-                      <p className="text-xs text-purple-600 mt-1">
-                        Save up to 50% by sharing your ride!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Location Fields */}
+            {/* Outstation Trip Toggle */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
               <div>
-                <label className="block text-sm font-medium mb-2">Pickup Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter pickup location"
-                    value={bookingData.pickupLocation}
-                    onChange={(e) => setBookingData({ ...bookingData, pickupLocation: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  />
-                </div>
+                <p className="text-sm font-semibold">Outstation / Intercity Trip</p>
+                <p className="text-xs text-gray-400">Includes highway permit & state toll allowance</p>
               </div>
+              <input
+                type="checkbox"
+                checked={isOutstation}
+                onChange={(e) => setIsOutstation(e.target.checked)}
+                className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+              />
+            </div>
 
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-2">Dropoff Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter dropoff location"
-                    value={bookingData.dropoffLocation}
-                    onChange={(e) => setBookingData({ ...bookingData, dropoffLocation: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  />
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Payment Method</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <select
-                    value={bookingData.paymentMethod}
-                    onChange={(e) => setBookingData({ ...bookingData, paymentMethod: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="card">Credit/Debit Card</option>
-                    <option value="upi">UPI (Google Pay, PhonePe, Paytm)</option>
-                    <option value="netbanking">Net Banking</option>
-                    <option value="cash">Cash on Pickup</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Special Requests */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Special Requests</label>
-                <textarea
-                  rows="3"
-                  value={bookingData.specialRequests}
-                  onChange={(e) => setBookingData({ ...bookingData, specialRequests: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  placeholder="Any special requests? (e.g., child seat, extra luggage space)"
+                <label className="block text-xs font-semibold mb-1">Start Date</label>
+                <input
+                  type="date"
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  value={bookingData.startDate}
+                  onChange={(e) => setBookingData({ ...bookingData, startDate: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm dark:bg-gray-700 dark:border-gray-600"
                 />
               </div>
-
-              {/* Price Breakdown */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg space-y-2">
-                <h3 className="font-semibold mb-2 flex items-center">
-                  <IndianRupee className="h-4 w-4 mr-1" />
-                  Price Breakdown
-                </h3>
-                <div className="flex justify-between text-sm">
-                  <span>Vehicle Rental ({days} days × ₹{vehicle.pricePerDay}/day)</span>
-                  <span>₹{(days * vehicle.pricePerDay).toLocaleString('en-IN')}</span>
-                </div>
-                {vehicle.driverRequired && vehicle.driverPrice > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Driver Charges ({days} days × ₹{vehicle.driverPrice}/day)</span>
-                    <span>₹{(days * vehicle.driverPrice).toLocaleString('en-IN')}</span>
-                  </div>
-                )}
-                {bookingData.isSharedRide && (
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Ride Sharing Discount ({calculateSharedDiscount() * 100}%)</span>
-                    <span>-₹{(calculateBaseTotal() * calculateSharedDiscount()).toLocaleString('en-IN')}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span>GST (18%)</span>
-                  <span>₹{Math.round(gst).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                  <span>Total Amount</span>
-                  <span className="text-blue-600">₹{Math.round(total).toLocaleString('en-IN')}</span>
-                </div>
-                {vehicle.securityDeposit > 0 && (
-                  <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2 pt-2 border-t">
-                    <Shield className="h-3 w-3" />
-                    <span>Security Deposit: ₹{vehicle.securityDeposit.toLocaleString('en-IN')} (Refundable)</span>
-                  </div>
-                )}
-                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                  <Clock className="h-3 w-3" />
-                  <span>Free cancellation up to 24 hours before pickup</span>
-                </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1">End Date</label>
+                <input
+                  type="date"
+                  required
+                  min={bookingData.startDate || new Date().toISOString().split('T')[0]}
+                  value={bookingData.endDate}
+                  onChange={(e) => setBookingData({ ...bookingData, endDate: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm dark:bg-gray-700 dark:border-gray-600"
+                />
               </div>
+            </div>
 
-              {/* Smart Pricing Info */}
-              {showSmartPricing && smartPrice && (
-                <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg text-sm">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <AlertCircle className="h-4 w-4 text-teal-600" />
-                    <span className="font-semibold">Smart Pricing Applied</span>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    {smartPrice.discounts.advanceBooking !== 'None' && `✓ Advance booking discount: ${smartPrice.discounts.advanceBooking}\n`}
-                    {smartPrice.discounts.rideSharing !== 'None' && `✓ ${smartPrice.discounts.rideSharing} discount for ride sharing`}
-                  </p>
+            {/* Locations */}
+            <div className="space-y-2">
+              <input
+                type="text"
+                required
+                placeholder="Pickup Location (e.g., Pune Station)"
+                value={bookingData.pickupLocation}
+                onChange={(e) => setBookingData({ ...bookingData, pickupLocation: e.target.value })}
+                className="w-full px-3 py-2 border rounded-xl text-sm dark:bg-gray-700 dark:border-gray-600"
+              />
+              <input
+                type="text"
+                required
+                placeholder="Dropoff Location"
+                value={bookingData.dropoffLocation}
+                onChange={(e) => setBookingData({ ...bookingData, dropoffLocation: e.target.value })}
+                className="w-full px-3 py-2 border rounded-xl text-sm dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Rental Base ({days} days × ₹{vehicle?.pricePerDay || 0})</span>
+                <span>₹{baseTotal}</span>
+              </div>
+              {bookingMode === 'with-driver' && (
+                <div className="flex justify-between text-purple-600 font-medium">
+                  <span>Driver Allowance ({days} days × ₹800)</span>
+                  <span>+₹{driverCharge}</span>
                 </div>
               )}
+              {isOutstation && (
+                <div className="flex justify-between text-indigo-600">
+                  <span>Outstation State Pass</span>
+                  <span>+₹{outstationAllowance}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>GST (18%)</span>
+                <span>₹{Math.round(gst)}</span>
+              </div>
+              <div className="flex justify-between text-base font-extrabold border-t pt-2 text-blue-600">
+                <span>Total Payable</span>
+                <span>₹{grandTotal}</span>
+              </div>
+              {securityDeposit > 0 && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                  <Shield className="h-3 w-3" /> Refundable Security Deposit: ₹{securityDeposit} (Pay on vehicle hand-over)
+                </p>
+              )}
+            </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50"
-              >
-                {loading ? 'Processing...' : `Confirm Booking • ₹${Math.round(total).toLocaleString('en-IN')}`}
-              </button>
-
-              <p className="text-xs text-center text-gray-500">
-                By confirming, you agree to our Terms of Service and Cancellation Policy
-              </p>
-            </form>
-          </motion.div>
-        </div>
-      )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:opacity-95 disabled:opacity-50"
+            >
+              {loading ? 'Processing Booking...' : `Confirm Booking • ₹${grandTotal}`}
+            </button>
+          </form>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 };

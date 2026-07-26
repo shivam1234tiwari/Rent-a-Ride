@@ -1,3 +1,5 @@
+// models/Vehicle.js
+
 const mongoose = require('mongoose');
 
 const vehicleSchema = new mongoose.Schema({
@@ -20,12 +22,11 @@ const vehicleSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['bike', 'car', 'truck', 'self-driving', 'auto-rickshaw'],
+    enum: ['bike', 'car', 'truck', 'self-driving', 'auto-rickshaw', 'suv', 'luxury', 'electric'],
     required: true,
   },
   subCategory: {
-    type: String,
-    enum: ['hatchback', 'sedan', 'suv', 'luxury', 'electric', 'sports', 'mini-truck', 'heavy-truck', 'autonomous'],
+    type: String, // String rakha hai taaki cruiser, scooter, off-road etc. reject na ho
   },
   pricePerDay: {
     type: Number,

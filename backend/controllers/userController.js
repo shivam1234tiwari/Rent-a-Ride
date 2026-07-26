@@ -24,6 +24,16 @@ const updateProfile = async (req, res) => {
       user.phone = req.body.phone || user.phone;
       if (req.body.avatar) user.avatar = req.body.avatar;
 
+      // Address nested object update fix
+      if (req.body.address) {
+        user.address = {
+          street: req.body.address.street !== undefined ? req.body.address.street : (user.address?.street || ''),
+          city: req.body.address.city !== undefined ? req.body.address.city : (user.address?.city || ''),
+          state: req.body.address.state !== undefined ? req.body.address.state : (user.address?.state || ''),
+          pincode: req.body.address.pincode !== undefined ? req.body.address.pincode : (user.address?.pincode || ''),
+        };
+      }
+
       const updatedUser = await user.save();
 
       res.json({
@@ -33,6 +43,7 @@ const updateProfile = async (req, res) => {
         phone: updatedUser.phone,
         avatar: updatedUser.avatar,
         role: updatedUser.role,
+        address: updatedUser.address, // Address included in response
       });
     } else {
       res.status(404).json({ message: 'User not found' });
