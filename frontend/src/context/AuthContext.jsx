@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
@@ -36,7 +36,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
       setUser(data.user || data);
       toast.success('Logged in successfully!');
       return true;
@@ -49,7 +51,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (formData) => {
     try {
       const { data } = await axios.post(`${API_URL}/auth/register`, formData);
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
       setUser(data.user || data);
       toast.success('Account created successfully!');
       return true;
@@ -65,7 +69,6 @@ export const AuthProvider = ({ children }) => {
     toast.success('Logged out successfully!');
   };
 
-  // Safe user state updates (prevents u is not a function when updating profile)
   const updateUserState = (updatedUserData) => {
     setUser((prev) => ({
       ...prev,
@@ -74,7 +77,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserState }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        loading, 
+        login, 
+        register, 
+        signup: register, // Alias mapped for maximum safety
+        logout, 
+        updateUserState 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -86,8 +99,9 @@ export const useAuth = () => {
     return {
       user: null,
       loading: false,
-      login: () => Promise.resolve(false),
-      register: () => Promise.resolve(false),
+      login: async () => false,
+      register: async () => false,
+      signup: async () => false,
       logout: () => {},
       updateUserState: () => {},
     };

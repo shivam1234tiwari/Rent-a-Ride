@@ -3,14 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Car } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import toast from 'react-hot-toast';
+
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const auth = useAuth() || {};
+  const { login } = auth;
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -22,11 +27,28 @@ const Login = () => {
     }
 
     setLoading(true);
-    const success = await login(email, password);
-    setLoading(false);
-    
-    if (success) {
-      navigate('/');
+
+    try {
+      if (typeof login === 'function') {
+        const success = await login(email, password);
+        if (success) {
+          navigate('/');
+        }
+      } else {
+        // Direct Fallback
+        const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          toast.success('Logged in successfully!');
+          navigate('/');
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error(error.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +92,7 @@ const Login = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 dark:text-white"
                   placeholder="you@example.com"
                   required
                 />
@@ -85,7 +107,7 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 dark:text-white"
                   placeholder="Enter your password"
                   required
                 />
@@ -103,12 +125,6 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <a href="#" className="text-sm text-blue-600 hover:text-blue-700">
-                Forgot password?
-              </a>
-            </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -124,16 +140,6 @@ const Login = () => {
               <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-semibold">
                 Sign up
               </Link>
-            </p>
-          </div>
-
-          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-              Demo Credentials:
-            </p>
-            <p className="text-xs text-center text-gray-500 dark:text-gray-500 mt-1">
-              Email: demo@rentwheels.com<br />
-              Password: demo123
             </p>
           </div>
         </div>

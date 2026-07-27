@@ -9,8 +9,8 @@ const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, 
 
 const Signup = () => {
   const navigate = useNavigate();
-  const authContext = useAuth() || {};
-  const { register, signup } = authContext;
+  const auth = useAuth() || {};
+  const registerFn = auth.register || auth.signup;
   
   const [formData, setFormData] = useState({
     name: '',
@@ -25,18 +25,15 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // 1. Try register function from Context
-      if (typeof register === 'function') {
-        const success = await register(formData);
-        if (success) navigate('/dashboard');
-      } 
-      // 2. Try signup function from Context
-      else if (typeof signup === 'function') {
-        const success = await signup(formData);
-        if (success) navigate('/dashboard');
-      } 
-      // 3. Direct Fallback API Request (Prevents crash if Context function is missing)
-      else {
+      // Priority 1: Call AuthContext function
+      if (typeof registerFn === 'function') {
+        const success = await registerFn(formData);
+        if (success) {
+          navigate('/dashboard');
+          return;
+        }
+      } else {
+        // Priority 2: Direct API Call Fallback (Prevents TypeError if context is missing)
         const { data } = await axios.post(`${API_URL}/auth/register`, formData);
         if (data.token) {
           localStorage.setItem('token', data.token);
