@@ -16,7 +16,7 @@ const SearchBar = ({ onSearch }) => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (onSearch) {
+    if (typeof onSearch === 'function') {
       onSearch({ category, search: searchTerm });
     }
   };

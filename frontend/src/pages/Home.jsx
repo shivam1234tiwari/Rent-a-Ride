@@ -8,7 +8,8 @@ import Loader from '../components/Loader';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 
 const Home = () => {
   const [featuredVehicles, setFeaturedVehicles] = useState([]);
@@ -24,54 +25,50 @@ const Home = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching vehicles from:', `${API_URL}/vehicles`);
-      
       const response = await axios.get(`${API_URL}/vehicles`);
       console.log('API Response:', response.data);
       
-      // Handle different response formats
       let vehicles = [];
       if (Array.isArray(response.data)) {
         vehicles = response.data;
-      } else if (response.data.vehicles && Array.isArray(response.data.vehicles)) {
+      } else if (response.data && Array.isArray(response.data.vehicles)) {
         vehicles = response.data.vehicles;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
+      } else if (response.data && Array.isArray(response.data.data)) {
         vehicles = response.data.data;
       } else {
-        console.warn('Unexpected response format:', response.data);
         vehicles = [];
       }
       
-      // Take first 6 vehicles for featured section
       const featured = vehicles.slice(0, 6);
-      setFeaturedVehicles(featured);
+      if (typeof setFeaturedVehicles === 'function') {
+        setFeaturedVehicles(featured);
+      }
       
       if (featured.length === 0) {
         setError('No vehicles found. Please add vehicles to the database.');
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error);
-      console.error('Error details:', error.response);
-      
       let errorMessage = 'Failed to load vehicles. ';
       if (error.response?.status === 404) {
-        errorMessage += 'API endpoint not found. Please check if backend is running on port 5000.';
-      } else if (error.response?.status === 500) {
-        errorMessage += 'Server error. Please check backend logs.';
+        errorMessage += 'API endpoint not found.';
       } else if (error.code === 'ERR_NETWORK') {
-        errorMessage += 'Cannot connect to server. Please make sure backend is running.';
+        errorMessage += 'Cannot connect to server.';
       } else {
-        errorMessage += error.message;
+        errorMessage += error.message || '';
       }
       
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      setLoading(false);
+      if (typeof setLoading === 'function') {
+        setLoading(false);
+      }
     }
   };
 
   const handleSearch = (filters) => {
+    if (!filters) return;
     const query = new URLSearchParams(filters).toString();
     window.location.href = `/vehicles?${query}`;
   };
@@ -220,9 +217,6 @@ const Home = () => {
             <div className="text-center py-12 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl">
               <p className="text-yellow-600 dark:text-yellow-400 mb-4">
                 No vehicles found. Please add vehicles to the database.
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Run the seed script: <code className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">node seedVehicles.js</code>
               </p>
             </div>
           ) : (
