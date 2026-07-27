@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Car, Users, Calendar, DollarSign, 
   TrendingUp, CheckCircle, 
-  Plus, Edit2, Trash2, Search, Filter, RefreshCw
+  Plus, Trash2, Search, RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 
 const AdminPanel = () => {
   const { user } = useAuth();
@@ -95,7 +95,6 @@ const AdminPanel = () => {
       setShowAddVehicle(false);
       fetchDashboardData();
     } catch (error) {
-      // Local optimistic update fallback
       setVehicles([...vehicles, { ...newVehicle, _id: Date.now().toString() }]);
       toast.success('Vehicle added (Preview Mode)');
       setShowAddVehicle(false);
@@ -117,8 +116,8 @@ const AdminPanel = () => {
   };
 
   const filteredVehicles = vehicles.filter(v => {
-    const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          v.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = v.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          v.brand?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || v.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
@@ -143,7 +142,6 @@ const AdminPanel = () => {
           </button>
         </div>
 
-        {/* Dynamic Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between">
@@ -194,7 +192,6 @@ const AdminPanel = () => {
           </div>
         </div>
 
-        {/* Tab Navigation */}
         <div className="flex space-x-2 border-b dark:border-gray-700 mb-6 overflow-x-auto">
           {['overview', 'vehicles', 'bookings', 'users'].map((tab) => (
             <button
@@ -211,7 +208,6 @@ const AdminPanel = () => {
           ))}
         </div>
 
-        {/* Overview Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
@@ -238,7 +234,6 @@ const AdminPanel = () => {
           </div>
         )}
 
-        {/* Vehicles Tab Content */}
         {activeTab === 'vehicles' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center gap-4 flex-wrap">
@@ -317,7 +312,6 @@ const AdminPanel = () => {
         )}
       </div>
 
-      {/* Add Vehicle Modal */}
       {showAddVehicle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl border dark:border-gray-700">

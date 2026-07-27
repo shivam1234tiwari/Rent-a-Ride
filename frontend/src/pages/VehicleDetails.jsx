@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Star, Fuel, Users, Gauge, Calendar, ShieldCheck, IndianRupee, ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import { Star, Fuel, Users, Gauge, ShieldCheck, ArrowLeft, Check } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Loader from '../components/Loader';
 import BookingModal from '../components/BookingModal';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800';
 
 const VehicleDetails = () => {
@@ -51,7 +51,6 @@ const VehicleDetails = () => {
   return (
     <div className="pt-20 pb-16 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Back Navigation */}
         <button 
           onClick={() => navigate(-1)} 
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 transition mb-6"
@@ -60,7 +59,6 @@ const VehicleDetails = () => {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Main Vehicle Image */}
           <div className="relative h-96 bg-gray-200 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700">
             <img 
               src={imgSrc} 
@@ -73,7 +71,6 @@ const VehicleDetails = () => {
             </div>
           </div>
 
-          {/* Details & Live Estimator */}
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -89,7 +86,6 @@ const VehicleDetails = () => {
               {vehicle.description || 'Premium rental vehicle maintained in top condition with full insurance coverage.'}
             </p>
 
-            {/* Vehicle Quick Specs */}
             <div className="grid grid-cols-2 gap-3 text-xs bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
               <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <Fuel className="h-4 w-4 text-blue-500" />
@@ -109,7 +105,6 @@ const VehicleDetails = () => {
               </div>
             </div>
 
-            {/* Features List */}
             {vehicle.features && vehicle.features.length > 0 && (
               <div>
                 <h4 className="text-xs font-bold uppercase text-gray-400 mb-2">Vehicle Features</h4>
@@ -123,7 +118,6 @@ const VehicleDetails = () => {
               </div>
             )}
 
-            {/* Live Pricing Estimator Widget */}
             <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3 shadow-md">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-bold text-gray-400 uppercase">Simulate Rental Duration:</label>
