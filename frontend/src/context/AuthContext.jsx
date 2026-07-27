@@ -36,11 +36,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Direct User State Updater Function
-  const updateUserState = (updatedUserData) => {
-    setUser((prev) => ({ ...prev, ...updatedUserData }));
-  };
-
   const login = async (email, password) => {
     try {
       const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
@@ -56,10 +51,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Register Function Definition
+  const register = async (userData) => {
+    try {
+      const { data } = await axios.post(`${API_URL}/auth/register`, userData);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setUser(data);
+        toast.success('Account created successfully!');
+        return true;
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Registration failed');
+      return false;
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
     toast.success('Logged out successfully');
+  };
+
+  const updateUserState = (updatedUserData) => {
+    setUser((prev) => ({ ...prev, ...updatedUserData }));
   };
 
   return (
@@ -68,9 +83,10 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         login,
+        register, // Make sure register is exported here
         logout,
         checkLoggedIn,
-        updateUserState, // Expose updater to Dashboard
+        updateUserState,
       }}
     >
       {children}

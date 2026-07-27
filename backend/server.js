@@ -12,20 +12,50 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Dynamic Allowed Origins List
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://rent-a-ride1.vercel.app',
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
+// Dynamic Origin Validation Function
+const corsOriginFunction = (origin, callback) => {
+  // Allow requests with no origin (like mobile apps, curl, or Postman)
+  if (!origin) return callback(null, true);
+
+  // Check if incoming origin is in allowed array or starts with vercel domain
+  if (
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app')
+  ) {
+    return callback(null, true);
+  }
+
+  return callback(null, true); // Fallback allow for production flexibility
+};
+
 // Socket.io setup for live tracking
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
+    origin: corsOriginFunction,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
 });
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-}));
+// Express CORS Middleware
+app.use(
+  cors({
+    origin: corsOriginFunction,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -36,13 +66,13 @@ connectDB();
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
-  
+
   // Join booking room for live tracking
   socket.on('join-booking', (bookingId) => {
     socket.join(`booking-${bookingId}`);
     console.log(`Client ${socket.id} joined booking-${bookingId}`);
   });
-  
+
   // Driver location update
   socket.on('driver-location-update', (data) => {
     const { bookingId, location } = data;
@@ -52,13 +82,13 @@ io.on('connection', (socket) => {
       timestamp: new Date(),
     });
   });
-  
+
   // Driver status update
   socket.on('driver-status', (data) => {
     const { driverId, status } = data;
     io.emit(`driver-${driverId}-status`, { driverId, status });
   });
-  
+
   // Chat message
   socket.on('chat-message', (data) => {
     const { bookingId, message, user } = data;
@@ -68,7 +98,7 @@ io.on('connection', (socket) => {
       timestamp: new Date(),
     });
   });
-  
+
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
   });
@@ -117,10 +147,10 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
-  
+
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
-  
+
   res.status(statusCode).json({
     success: false,
     message,
