@@ -1,34 +1,31 @@
-// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 const AuthContext = createContext();
+
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkLoggedIn();
+    checkUserLoggedIn();
   }, []);
 
-  const checkLoggedIn = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
+  const checkUserLoggedIn = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(data);
+      const token = localStorage.getItem('token');
+      if (token) {
+        const { data } = await axios.get(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(data);
+      }
     } catch (error) {
+      console.error('Error verifying session:', error);
       localStorage.removeItem('token');
       setUser(null);
     } finally {
@@ -39,30 +36,25 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setUser(data);
-        toast.success(`Welcome back, ${data.name || 'User'}!`);
-        return true;
-      }
+      localStorage.setItem('token', data.token);
+      setUser(data.user || data);
+      toast.success('Logged in successfully!');
+      return true;
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid credentials');
+      toast.error(error.response?.data?.message || 'Login failed');
       return false;
     }
   };
 
-  // Register Function Definition
-  const register = async (userData) => {
+  const register = async (formData) => {
     try {
-      const { data } = await axios.post(`${API_URL}/auth/register`, userData);
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setUser(data);
-        toast.success('Account created successfully!');
-        return true;
-      }
+      const { data } = await axios.post(`${API_URL}/auth/register`, formData);
+      localStorage.setItem('token', data.token);
+      setUser(data.user || data);
+      toast.success('Account created successfully!');
+      return true;
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toast.error(error.response?.data?.message || 'Signup failed');
       return false;
     }
   };
@@ -70,29 +62,37 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
-    toast.success('Logged out successfully');
+    toast.success('Logged out successfully!');
   };
 
+  // Safe user state updates (prevents u is not a function when updating profile)
   const updateUserState = (updatedUserData) => {
-    setUser((prev) => ({ ...prev, ...updatedUserData }));
+    setUser((prev) => ({
+      ...prev,
+      ...updatedUserData
+    }));
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register, // Make sure register is exported here
-        logout,
-        checkLoggedIn,
-        updateUserState,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserState }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    return {
+      user: null,
+      loading: false,
+      login: () => Promise.resolve(false),
+      register: () => Promise.resolve(false),
+      logout: () => {},
+      updateUserState: () => {},
+    };
+  }
+  return context;
+};
+
 export default AuthContext;
