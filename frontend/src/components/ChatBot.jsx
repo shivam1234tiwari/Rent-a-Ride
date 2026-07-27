@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Bot, Minimize2, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Clean and safe API URL construction
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = RAW_URL.endsWith('/api') ? RAW_URL : `${RAW_URL.replace(/\/+$/, '')}/api`;
 
 const QUICK_SUGGESTIONS = [
   "🚗 Book a car",
@@ -49,13 +50,15 @@ const ChatBot = () => {
 
   const loadChatHistory = async () => {
     try {
+      const token = localStorage.getItem('token');
       const { data } = await axios.get(`${API_URL}/chat/history/${sessionId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (data && data.length > 0) {
+
+      if (data && Array.isArray(data) && data.length > 0) {
         const formattedMessages = data.flatMap(msg => [
-          { text: msg.message, isUser: true, timestamp: msg.timestamp },
-          { text: msg.response, isUser: false, timestamp: msg.timestamp },
+          { text: msg.message, isUser: true, timestamp: msg.timestamp || new Date() },
+          { text: msg.response, isUser: false, timestamp: msg.timestamp || new Date() },
         ]);
         setMessages(formattedMessages);
       } else {
@@ -78,7 +81,6 @@ const ChatBot = () => {
     }
   };
 
-  // Smart Local Fallback Logic (used if Backend fails)
   const getSmartFallbackResponse = (query) => {
     const q = query.toLowerCase();
     if (q.includes('book') || q.includes('car') || q.includes('rent') || q.includes('vehicle')) {
@@ -114,10 +116,9 @@ const ChatBot = () => {
 
       setMessages(prev => [
         ...prev,
-        { text: data.response, isUser: false, timestamp: new Date() },
+        { text: data.response || getSmartFallbackResponse(messageText), isUser: false, timestamp: new Date() },
       ]);
     } catch (error) {
-      // Fallback local response if server fails
       const fallbackReply = getSmartFallbackResponse(messageText);
       setMessages(prev => [
         ...prev,
@@ -138,7 +139,7 @@ const ChatBot = () => {
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Toggle Button */}
       {!isOpen && (
         <motion.button
           initial={{ scale: 0 }}
@@ -152,7 +153,7 @@ const ChatBot = () => {
         </motion.button>
       )}
 
-      {/* Chat Container */}
+      {/* Chat Box */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -170,7 +171,9 @@ const ChatBot = () => {
                   <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm leading-none">RentWheels AI</h4>
+                  <h4 className="font-bold text-sm leading-none flex items-center gap-1">
+                    RentWheels AI <Sparkles className="h-3 w-3 text-amber-300" />
+                  </h4>
                   <span className="text-[10px] text-blue-100 flex items-center gap-1 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
                   </span>
@@ -194,9 +197,9 @@ const ChatBot = () => {
               </div>
             </div>
 
-            {/* Messages Body */}
             {!isMinimized && (
               <>
+                {/* Messages Body */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {messages.map((msg, idx) => (
                     <div
@@ -218,7 +221,7 @@ const ChatBot = () => {
                     </div>
                   ))}
 
-                  {/* Typing Indicator */}
+                  {/* Loading Dots */}
                   {isLoading && (
                     <div className="flex justify-start">
                       <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-2xl rounded-bl-none">
@@ -233,7 +236,7 @@ const ChatBot = () => {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Quick Chips */}
+                {/* Quick Suggestion Chips */}
                 <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800/80 border-t dark:border-gray-700/60 overflow-x-auto flex gap-1.5 no-scrollbar">
                   {QUICK_SUGGESTIONS.map((suggestion, i) => (
                     <button
@@ -246,7 +249,7 @@ const ChatBot = () => {
                   ))}
                 </div>
 
-                {/* Input Controls */}
+                {/* Input Area */}
                 <div className="p-3 border-t dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl">
                   <div className="flex items-center space-x-2">
                     <input

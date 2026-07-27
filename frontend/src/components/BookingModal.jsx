@@ -6,7 +6,9 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Ensure /api path is properly formatted
+const BASE_ENV_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = BASE_ENV_URL.endsWith('/api') ? BASE_ENV_URL : `${BASE_ENV_URL}/api`;
 
 const BookingModal = ({ isOpen, onClose, vehicle, onBookingSuccess }) => {
   const { user } = useAuth();
